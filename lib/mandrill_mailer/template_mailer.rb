@@ -113,7 +113,28 @@ module MandrillMailer
     # Public: Triggers the stored Mandrill params to be sent to the Mandrill api
     def deliver
       mandrill = Mandrill::API.new(api_key)
-      mandrill.messages.send_template(template_name, template_content, message, async, ip_pool, send_at)
+
+      if MandrillMailer.config.letter_opener == true
+        letter_opener(template_name, template_content, message)
+      else
+        mandrill.messages.send_template(template_name, template_content, message, async, ip_pool, send_at)
+      end
+    end
+
+    # Public: Stimulate a Mandrill send template in browser
+    def letter_opener(template_name, template_content, message)
+      mandrill = Mandrill::API.new(api_key)
+
+      recipients = ""
+      message['to'].each do |recipient|
+          recipients << "\"#{recipient['email']}\", "
+      end
+
+      template = mandrill.templates.render(template_name, template_content, message['global_merge_vars'] + message['merge_vars'])
+      temp_file = Tempfile.new(SecureRandom.hex)
+      temp_file.write(template['html'] + "<div style=\"position:fixed;top:0;height:50px;width:100%;line-height:50px;text-align:center;font-family:sans-serif;background:rgba(0,0,255,0.2);color:#333;\">From: \"#{message['from_email']}\", To: #{recipients} Subject: \"#{message['subject']}\"</div>")
+      temp_file.close
+      Launchy.open(temp_file.path)
     end
 
     # Public: Build the hash needed to send to the mandrill api
