@@ -27,7 +27,7 @@
 #                                     }
 #                                   end,
 #                   template_content: {},
-#                   attachments: [{file: File.read(File.expand_path('assets/some_image.png')), filename: 'My Image.png', mimetype: 'image/png'}],
+#                   attachments: [{contents: File.read(File.expand_path('assets/some_image.png')), name: 'MyImage.png', type: 'image/png'}],
 #                   important: true,
 #                   inline_css: true
 #   end
@@ -48,7 +48,7 @@
 #         'example@domain.com`
 #       2)
 #         { email: 'someone@email.com', name: 'Bob Bertly' }
-#       3) 
+#       3)
 #         [{ email: 'someone@email.com', name: 'Bob Bertly' },
 #          { email: 'other@email.com', name: 'Claire Nayo' }]
 #
@@ -67,14 +67,14 @@
 #     these fields by passing a Hash {'header' => 'my email content'}
 
 #   :attachments - An array of file objects with the following keys:
-#       file: This is the actual file, it will be converted to byte data in the mailer
-#       filename: The name of the file
-#       mimetype: This is the mimetype of the file. Ex. png = image/png, pdf = application/pdf, txt = text/plain etc
+#       content: The file contents, this will be encoded into a base64 string internally
+#       name: The name of the file
+#       type: This is the mimetype of the file. Ex. png = image/png, pdf = application/pdf, txt = text/plain etc
 
 #   :images - An array of embedded images to add to the message:
-#       file: This is the actual file, it will be converted to byte data in the mailer
-#       filename: The Content ID of the image - use <img src="cid:THIS_VALUE"> to reference the image in your HTML content
-#       mimetype: The MIME type of the image - must start with "image/"
+#       content: The file contents, this will be encoded into a base64 string internally
+#       name: The name of the file
+#       type: This is the mimetype of the file. Ex. png = image/png, pdf = application/pdf, txt = text/plain etc
 
 # :headers - Extra headers to add to the message (currently only Reply-To and X-* headers are allowed) {"...": "..."}
 
@@ -201,6 +201,7 @@ module MandrillMailer
         "url_strip_qs" => args.fetch(:url_strip_qs, true),
         "preserve_recipients" => args[:preserve_recipients],
         "bcc_address" => args[:bcc],
+        "merge_language" => args[:merge_language],
         "global_merge_vars" => mandrill_args(args[:vars]),
         "merge_vars" => mandrill_rcpt_args(args[:recipient_vars]),
         "tags" => args[:tags],

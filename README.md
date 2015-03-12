@@ -1,6 +1,6 @@
-# Mandrill Mailer 
-[![Gem Version](http://img.shields.io/gem/v/mandrill_mailer.svg)](rubygems.org/gems/mandrill_mailer) 
-[![Code Climate](http://img.shields.io/codeclimate/github/renz45/mandrill_mailer.svg)](https://codeclimate.com/github/renz45/mandrill_mailer) 
+# Mandrill Mailer
+[![Gem Version](http://img.shields.io/gem/v/mandrill_mailer.svg)](rubygems.org/gems/mandrill_mailer)
+[![Code Climate](http://img.shields.io/codeclimate/github/renz45/mandrill_mailer.svg)](https://codeclimate.com/github/renz45/mandrill_mailer)
 [![Dependencies](http://img.shields.io/gemnasium/renz45/mandrill_mailer.svg)](https://gemnasium.com/renz45/mandrill_mailer)
 
 Inherit the MandrillMailer class in your existing Rails mailers to send transactional emails through Mandrill using their template-based emails.
@@ -32,7 +32,7 @@ ActionMailer::Base.smtp_settings = {
     :address   => "smtp.mandrillapp.com",
     :port      => 587,
     :user_name => ENV['MANDRILL_USERNAME'],
-    :password  => ENV['MANDRILL_PASSWORD'],
+    :password  => ENV['MANDRILL_API_KEY'],
     :domain    => 'heroku.com'
   }
 ActionMailer::Base.delivery_method = :smtp
@@ -47,7 +47,7 @@ You don't need to add the ActionMailer stuff unless you're still using ActionMai
 This uses the Mandrill SMTP servers. If you're using template-based emails
 through the Mandrill API you only need the `MandrillMailer.configure` portion.
 
-Do not forget to setup the environment (`ENV`) variables on your server instead 
+Do not forget to setup the environment (`ENV`) variables on your server instead
 of hardcoding your Mandrill username and password in the `mail.rb` initializer.
 
 You will also need to set `default_url_options` for the mailer, similar to ActionMailer
@@ -68,25 +68,30 @@ class InvitationMailer < MandrillMailer::TemplateMailer
     # in this example `invitation.invitees` is an Array
     invitees = invitation.invitees.map { |invitee| { email: invitee.email, name: invitee.name } }
 
-    mandrill_mail template: 'group-invite',
-                  subject: I18n.t('invitation_mailer.invite.subject'),
-                  to: invitees,
-                  # to: invitation.email,
-                  # to: { email: invitation.email, name: 'Honored Guest' },
-                  vars: {
-                    'OWNER_NAME' => invitation.owner_name,
-                    'PROJECT_NAME' => invitation.project_name
-                  },
-                  important: true,
-                  inline_css: true,
-                  recipient_vars: invitation.invitees.map do |invitee| # invitation.invitees is an Array
-                    { invitee.email =>
-                      {
-                        'INVITEE_NAME' => invitee.name,
-                        'INVITATION_URL' => new_invitation_url(invitee.email, secret: invitee.secret_code)
-                      }
-                    }
-                  end
+    mandrill_mail(
+      template: 'group-invite',
+      subject: I18n.t('invitation_mailer.invite.subject'),
+      to: invitees,
+        # to: invitation.email,
+        # to: { email: invitation.email, name: 'Honored Guest' },
+      vars: {
+        'OWNER_NAME' => invitation.owner_name,
+        'PROJECT_NAME' => invitation.project_name
+      },
+      important: true,
+      inline_css: true,
+      recipient_vars: invitation.invitees.map do |invitee|
+        { invitee.email =>
+          {
+            'INVITEE_NAME' => invitee.name,
+            'INVITATION_URL' => new_invitation_url(
+              invitee.email,
+              secret: invitee.secret_code
+            )
+          }
+        }
+      end
+     )
   end
 end
 ```
@@ -141,14 +146,14 @@ end
    * `:inline_css` - whether or not to automatically inline all CSS styles provided in the message HTML - only for HTML documents less than 256KB in size.
 
    * `:attachments` - An array of file objects with the following keys:
-      * `file:` This is the actual file, it will be converted to byte data in the mailer
-      * `filename:` The name of the file
-      * `mimetype:` This is the mimetype of the file. Ex. png = image/png, pdf = application/pdf, txt = text/plain etc
+     * `content`: The file contents, this will be encoded into a base64 string internally
+     * `name`: The name of the file
+     * `type`: This is the mimetype of the file. Ex. png = image/png, pdf = application/pdf, txt = text/plain etc etc
 
    * `:images` - An array of embedded images to add to the message:
-      * `file:` This is the actual file, it will be converted to byte data in the mailer
-      * `filename:` The Content ID of the image - use `<img src="cid:THIS_VALUE">` to reference the image in your HTML content
-      * `mimetype:` The MIME type of the image - must start with "image/"
+     * `content`: The file contents, this will be encoded into a base64 string internally
+     * `name`: The name of the file
+     * `type`: This is the mimetype of the file. Ex. png = image/png, pdf = application/pdf, txt = text/plain etc etc etc
 
    * `:async` - Whether or not this message should be sent asynchronously
 
@@ -157,7 +162,9 @@ end
    * `:send_at` - When this message should be sent
 
 ## Sending a message without template
-Sending a message without template is similar to sending a template one:
+Sending a message without template is similar to sending a one with a template. The biggest
+change is that you have to inherit from `MandrillMailer::MessageMailer` instead of the
+MandrillMailer::TemplateMailer class:
 
 ```ruby
 class InvitationMailer < MandrillMailer::MessageMailer
@@ -167,7 +174,7 @@ class InvitationMailer < MandrillMailer::MessageMailer
     # in this example `invitation.invitees` is an Array
     invitees = invitation.invitees.map { |invitee| { email: invitee.email, name: invitee.name } }
 
-    # no need to set up tempalte and template_content attributes, set up the html and text directly
+    # no need to set up template and template_content attributes, set up the html and text directly
     mandrill_mail subject: I18n.t('invitation_mailer.invite.subject'),
                   to: invitees,
                   # to: invitation.email,
@@ -181,6 +188,13 @@ class InvitationMailer < MandrillMailer::MessageMailer
                   },
                   important: true,
                   inline_css: true,
+                  attachments: [
+                    {
+                      content: File.read(File.expand_path('assets/offer.pdf')),
+                      name: 'offer.pdf',
+                      type: 'application/pdf'
+                    }
+                  ],
                   recipient_vars: invitation.invitees.map do |invitee| # invitation.invitees is an Array
                     { invitee.email =>
                       {
@@ -321,6 +335,6 @@ Example:
 
 ```ruby
 MandrillMailer.configure do |config|
-  config.interceptor_params = { to: "emailtothatwillbeusedinall@emailssent.com" }
+  config.interceptor_params = { to: [{ email: "emailtothatwillbeusedinall@emailssent.com", name: "name" }] }
 end
 ```
